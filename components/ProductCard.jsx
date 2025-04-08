@@ -28,6 +28,9 @@ export function ProductCard({
     return isNaN(numPrice) ? "0.00" : numPrice.toFixed(2);
   };
 
+  // Parse sizes from itemDetails
+  const availableSizes = itemDetails.Size ? itemDetails.Size.split(",") : [];
+
   return (
     <div className="group relative bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow flex flex-col h-full">
       <Link href={`/product/${id}`} className="block">
@@ -81,6 +84,16 @@ export function ProductCard({
             ))}
             <span className="text-sm text-zinc-500 ml-1">({reviewCount})</span>
           </div>
+          {/* Show available sizes */}
+          {availableSizes.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1">
+              {availableSizes.map((size) => (
+                <Badge key={size} variant="secondary" className="text-xs">
+                  {size}
+                </Badge>
+              ))}
+            </div>
+          )}
         </div>
         <div className="flex gap-2 mt-4">
           <Button asChild className="flex-1 bg-[#0064B1] hover:bg-[#0064B1]/90">

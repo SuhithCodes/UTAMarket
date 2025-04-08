@@ -16,7 +16,20 @@ import {
   Phone,
   MapPin,
   CreditCard,
+  Bell,
+  Grid,
+  List,
+  Eye,
+  Trash2,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -52,6 +65,23 @@ export default function SettingsPage() {
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
+
+    // Notification Settings
+    emailNotifications: true,
+    orderUpdates: true,
+    promotionalOffers: false,
+
+    // Platform Settings
+    theme: "light",
+
+    // Display Preferences
+    productsPerPage: 12,
+    defaultSort: "newest",
+
+    // Shopping Preferences
+    defaultShippingAddress: "",
+    preferredPaymentMethod: "credit_card",
+    savePaymentInfo: false,
   });
 
   useEffect(() => {
@@ -506,40 +536,164 @@ export default function SettingsPage() {
                 </div>
               </Card>
 
+              {/* Notification Settings */}
+              <Card className="p-6 mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold flex items-center">
+                    <Bell className="h-5 w-5 mr-2" />
+                    Notification Settings
+                  </h2>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label>Email Notifications</Label>
+                      <p className="text-sm text-gray-500">
+                        Receive notifications via email
+                      </p>
+                    </div>
+                    <Switch
+                      checked={formData.emailNotifications}
+                      onCheckedChange={(checked) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          emailNotifications: checked,
+                        }))
+                      }
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label>Order Updates</Label>
+                      <p className="text-sm text-gray-500">
+                        Get notified about order status changes
+                      </p>
+                    </div>
+                    <Switch
+                      checked={formData.orderUpdates}
+                      onCheckedChange={(checked) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          orderUpdates: checked,
+                        }))
+                      }
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label>Promotional Offers</Label>
+                      <p className="text-sm text-gray-500">
+                        Receive promotional offers and discounts
+                      </p>
+                    </div>
+                    <Switch
+                      checked={formData.promotionalOffers}
+                      onCheckedChange={(checked) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          promotionalOffers: checked,
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+              </Card>
+
+              {/* Platform Settings */}
+              <Card className="p-6 mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold flex items-center">
+                    <Grid className="h-5 w-5 mr-2" />
+                    Platform Settings
+                  </h2>
+                </div>
+
+                <div className="space-y-6">
+                  {/* Shopping Preferences */}
+                  <div>
+                    <h3 className="text-lg font-medium mb-3">
+                      Shopping Preferences
+                    </h3>
+                    <div className="space-y-4">
+                      <div>
+                        <Label>Default shipping address</Label>
+                        <Select
+                          value={formData.defaultShippingAddress}
+                          onValueChange={(value) =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              defaultShippingAddress: value,
+                            }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select default address" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="home">Home Address</SelectItem>
+                            <SelectItem value="work">Work Address</SelectItem>
+                            <SelectItem value="other">Other Address</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <Label>Preferred payment method</Label>
+                        <Select
+                          value={formData.preferredPaymentMethod}
+                          onValueChange={(value) =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              preferredPaymentMethod: value,
+                            }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select payment method" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="credit_card">
+                              Credit Card
+                            </SelectItem>
+                            <SelectItem value="paypal">PayPal</SelectItem>
+                            <SelectItem value="bank_transfer">
+                              Bank Transfer
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Label>Save payment information</Label>
+                          <p className="text-sm text-gray-500">
+                            Store payment details for faster checkout
+                          </p>
+                        </div>
+                        <Switch
+                          checked={formData.savePaymentInfo}
+                          onCheckedChange={(checked) =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              savePaymentInfo: checked,
+                            }))
+                          }
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
               {isEditing && (
-                <div className="flex justify-end space-x-4">
+                <div className="flex justify-end">
                   <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setIsEditing(false);
-                      setFormData({
-                        name: profileData.name,
-                        email: profileData.email,
-                        studentId: profileData.studentId,
-                        dateOfBirth: profileData.dateOfBirth,
-                        phoneNumber: profileData.phoneNumber || "",
-                        addressLine1: profileData.addressLine1 || "",
-                        addressLine2: profileData.addressLine2 || "",
-                        city: profileData.city || "",
-                        state: profileData.state || "",
-                        zipCode: profileData.zipCode || "",
-                        country: profileData.country || "USA",
-                        preferredPaymentMethod:
-                          profileData.preferredPaymentMethod || "Credit Card",
-                        cardLastFour: profileData.cardLastFour || "",
-                        cardType: profileData.cardType || "",
-                        cardExpiryMonth: profileData.cardExpiryMonth || "",
-                        cardExpiryYear: profileData.cardExpiryYear || "",
-                        currentPassword: "",
-                        newPassword: "",
-                        confirmPassword: "",
-                      });
-                    }}
+                    type="submit"
+                    className="bg-[#0064B1] hover:bg-[#0064B1]/90"
                   >
-                    Cancel
-                  </Button>
-                  <Button type="submit" className="flex items-center">
                     <Save className="h-4 w-4 mr-2" />
                     Save Changes
                   </Button>

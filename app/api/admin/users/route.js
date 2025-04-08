@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import pool from "@/database/db";
 
 export async function GET(request) {
+  let connection;
   try {
     // Simple auth check using JWT token from cookie
     const cookieStore = await cookies();
@@ -34,66 +35,68 @@ export async function GET(request) {
       );
     }
 
-    // Get a connection from the pool
-    const connection = await pool.getConnection();
+    // Get connection from pool
+    connection = await pool.getConnection();
 
-    try {
-      // Get all users with their details
-      const [users] = await connection.query(`
-        SELECT 
-          id,
-          name,
-          email,
-          student_id,
-          created_at
-        FROM users
-        ORDER BY created_at DESC
-      `);
+    // Get all users with their details
+    const [users] = await connection.query(`
+      SELECT 
+        id,
+        name,
+        email,
+        student_id,
+        created_at
+      FROM users
+      ORDER BY created_at DESC
+    `);
 
-      // Get total users count
-      const [totalUsersResult] = await connection.query(`
-        SELECT COUNT(*) as total
-        FROM users
-      `);
+    // Get total users count
+    const [totalUsersResult] = await connection.query(`
+      SELECT COUNT(*) as total
+      FROM users
+    `);
 
-      // Get new users this month
-      const [newUsersResult] = await connection.query(`
-        SELECT COUNT(*) as total
-        FROM users
-        WHERE MONTH(created_at) = MONTH(CURRENT_DATE())
-        AND YEAR(created_at) = YEAR(CURRENT_DATE())
-      `);
+    // Get new users this month
+    const [newUsersResult] = await connection.query(`
+      SELECT COUNT(*) as total
+      FROM users
+      WHERE MONTH(created_at) = MONTH(CURRENT_DATE())
+      AND YEAR(created_at) = YEAR(CURRENT_DATE())
+    `);
 
-      // Get active users (users who have placed orders in the last 30 days)
-      const [activeUsersResult] = await connection.query(`
-        SELECT COUNT(DISTINCT user_id) as total
-        FROM orders
-        WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-      `);
+    // Get active users (users who have placed orders in the last 30 days)
+    const [activeUsersResult] = await connection.query(`
+      SELECT COUNT(DISTINCT user_id) as total
+      FROM orders
+      WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+    `);
 
-      const stats = {
-        totalUsers: Number(totalUsersResult[0].total),
-        newUsersThisMonth: Number(newUsersResult[0].total),
-        activeUsers: Number(activeUsersResult[0].total),
-      };
+    const stats = {
+      totalUsers: Number(totalUsersResult[0].total),
+      newUsersThisMonth: Number(newUsersResult[0].total),
+      activeUsers: Number(activeUsersResult[0].total),
+    };
 
-      return NextResponse.json({
-        users,
-        stats,
-      });
-    } finally {
-      connection.release();
-    }
+    return NextResponse.json({
+      users,
+      stats,
+    });
   } catch (error) {
     console.error("Error in users API:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
     );
+  } finally {
+    // Always release the connection back to the pool
+    if (connection) {
+      connection.release();
+    }
   }
 }
 
 export async function DELETE(request) {
+  let connection;
   try {
     // Simple auth check using JWT token from cookie
     const cookieStore = await cookies();
@@ -135,7 +138,11 @@ export async function DELETE(request) {
       );
     }
 
-    const connection = await pool.getConnection();
+    // Get connection from pool
+    connection = await pool.getConnection();
+
+    // Start transaction
+    await connection.beginTransaction();
 
     try {
       // First, delete related records in other tables
@@ -150,9 +157,14 @@ export async function DELETE(request) {
       // Finally, delete the user
       await connection.query("DELETE FROM users WHERE id = ?", [userId]);
 
+      // Commit transaction
+      await connection.commit();
+
       return NextResponse.json({ success: true });
-    } finally {
-      connection.release();
+    } catch (error) {
+      // Rollback transaction on error
+      await connection.rollback();
+      throw error;
     }
   } catch (error) {
     console.error("Error deleting user:", error);
@@ -160,5 +172,10 @@ export async function DELETE(request) {
       { error: "Internal server error" },
       { status: 500 }
     );
+  } finally {
+    // Always release the connection back to the pool
+    if (connection) {
+      connection.release();
+    }
   }
 }

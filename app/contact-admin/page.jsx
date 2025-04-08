@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -18,90 +18,190 @@ import {
   Circle,
 } from "lucide-react";
 
-// Mock user conversations for demonstration
-const mockUsers = [
-  {
-    id: 1,
-    name: "John Smith",
-    email: "john.smith@mavs.uta.edu",
-    lastMessage: "I need help with my order #1234",
-    timestamp: "10:30 AM",
-    unread: true,
-    status: "active",
-  },
-  {
-    id: 2,
-    name: "Emily Johnson",
-    email: "emily.j@mavs.uta.edu",
-    lastMessage: "When will my refund be processed?",
-    timestamp: "9:45 AM",
-    unread: false,
-    status: "active",
-  },
-  {
-    id: 3,
-    name: "Michael Brown",
-    email: "m.brown@mavs.uta.edu",
-    lastMessage: "Thanks for your help!",
-    timestamp: "Yesterday",
-    unread: false,
-    status: "resolved",
-  },
-  {
-    id: 4,
-    name: "Sarah Wilson",
-    email: "s.wilson@mavs.uta.edu",
-    lastMessage: "I have a question about shipping",
-    timestamp: "Yesterday",
-    unread: true,
-    status: "pending",
-  },
-];
+// WebSocket
+const useWebSocket = (url) => {
+  const [socket, setSocket] = useState(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [lastMessage, setLastMessage] = useState(null);
 
-// Initial messages for the selected chat
-const initialMessages = [
-  {
-    id: 1,
-    type: "system",
-    content: "Chat started with admin support.",
-    timestamp: "10:00 AM",
-  },
-];
+  useEffect(() => {
+    const ws = new WebSocket(url);
+
+    ws.onopen = () => {
+      console.log("WebSocket Connected");
+      setIsConnected(true);
+    };
+
+    ws.onmessage = (event) => {
+      const message = JSON.parse(event.data);
+      setLastMessage(message);
+    };
+
+    ws.onclose = () => {
+      console.log("WebSocket Disconnected");
+      setIsConnected(false);
+    };
+
+    ws.onerror = (error) => {
+      console.error("WebSocket Error:", error);
+    };
+
+    setSocket(ws);
+
+    return () => {
+      ws.close();
+    };
+  }, [url]);
+
+  const sendMessage = (message) => {
+    if (socket && isConnected) {
+      socket.send(JSON.stringify(message));
+    }
+  };
+
+  return { socket, isConnected, lastMessage, sendMessage };
+};
 
 export default function ContactAdminPage() {
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [messages, setMessages] = useState(initialMessages);
+  const [selectedSession, setSelectedSession] = useState(null);
+  const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [sessions, setSessions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const messagesEndRef = useRef(null);
+  const [lastMessageId, setLastMessageId] = useState(null);
 
-  const filteredUsers = mockUsers.filter(
-    (user) =>
-      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Function to fetch new messages for the current session
+  const fetchNewMessages = async () => {
+    if (!selectedSession) return;
 
-  const handleUserSelect = (user) => {
-    setSelectedUser(user);
-    // In a real app, we would fetch the chat history for this user
-    setMessages(initialMessages);
+    try {
+      const response = await fetch(
+        `/api/chat?userId=${selectedSession.user_id}`
+      );
+      const data = await response.json();
+
+      if (data.success && data.messages.length > 0) {
+        const lastMsg = data.messages[data.messages.length - 1];
+
+        // Only update if we have new messages
+        if (!lastMessageId || lastMsg.id > lastMessageId) {
+          setMessages(data.messages);
+          setLastMessageId(lastMsg.id);
+          scrollToBottom();
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching new messages:", error);
+    }
   };
 
-  const handleSendMessage = (e) => {
-    e.preventDefault();
-    if (!newMessage.trim() || !selectedUser) return;
+  // Function to fetch all active sessions
+  const fetchSessions = async () => {
+    try {
+      const response = await fetch("/api/support");
+      const data = await response.json();
+      if (data.success) {
+        setSessions(data.sessions);
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error("Error fetching sessions:", error);
+      setLoading(false);
+    }
+  };
 
-    const userMessage = {
-      id: messages.length + 1,
-      type: "admin",
-      content: newMessage,
-      timestamp: new Date().toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
+  // Set up polling for new messages and sessions
+  useEffect(() => {
+    // Initial fetch
+    fetchSessions();
+
+    // Set up polling intervals
+    const sessionsInterval = setInterval(fetchSessions, 5000); // Poll every 5 seconds
+    const messagesInterval = setInterval(fetchNewMessages, 2000); // Poll every 2 seconds
+
+    // Cleanup intervals on unmount
+    return () => {
+      clearInterval(sessionsInterval);
+      clearInterval(messagesInterval);
     };
-    setMessages([...messages, userMessage]);
-    setNewMessage("");
+  }, []); // Empty dependency array for initial setup
+
+  // Additional polling for new messages when session changes
+  useEffect(() => {
+    if (selectedSession) {
+      fetchNewMessages();
+    }
+  }, [selectedSession]);
+
+  // Scroll to bottom effect
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const filteredSessions = sessions.filter(
+    (session) =>
+      session.user_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      session.user_email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const handleSessionSelect = (session) => {
+    setSelectedSession(session);
+    setMessages(session.messages);
+  };
+
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!newMessage.trim() || !selectedSession) return;
+
+    try {
+      const unixTimestamp = Math.floor(Date.now() / 1000);
+      const message = {
+        sessionId: selectedSession.session_id,
+        userId: selectedSession.user_id,
+        content: newMessage,
+        timestamp: unixTimestamp,
+        type: "admin",
+      };
+
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(message),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to send message");
+      }
+
+      const result = await response.json();
+      if (result.success) {
+        // Update local state with the new message
+        const newMessageObj = {
+          id: result.messageId,
+          type: "admin",
+          content: newMessage,
+          timestamp: unixTimestamp,
+          displayTime: new Date(unixTimestamp * 1000).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        };
+
+        setMessages((prev) => [...prev, newMessageObj]);
+        setNewMessage("");
+      }
+    } catch (error) {
+      console.error("Error sending message:", error);
+    }
   };
 
   const getStatusColor = (status) => {
@@ -148,13 +248,15 @@ export default function ContactAdminPage() {
                 </div>
                 <ScrollArea className="h-[calc(700px-73px)]">
                   <div className="space-y-1">
-                    {filteredUsers.map((user) => (
+                    {filteredSessions.map((session) => (
                       <div
-                        key={user.id}
+                        key={session.session_id}
                         className={`p-4 hover:bg-gray-50 cursor-pointer ${
-                          selectedUser?.id === user.id ? "bg-gray-50" : ""
+                          selectedSession?.session_id === session.session_id
+                            ? "bg-gray-50"
+                            : ""
                         }`}
-                        onClick={() => handleUserSelect(user)}
+                        onClick={() => handleSessionSelect(session)}
                       >
                         <div className="flex items-start gap-3">
                           <div className="w-10 h-10 bg-[#0064B1] rounded-full flex items-center justify-center flex-shrink-0">
@@ -163,31 +265,31 @@ export default function ContactAdminPage() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between">
                               <h3 className="font-semibold truncate">
-                                {user.name}
+                                {session.user_name}
                               </h3>
                               <span className="text-xs text-gray-500">
-                                {user.timestamp}
+                                {new Date(
+                                  session.last_message_at
+                                ).toLocaleTimeString([], {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
                               </span>
                             </div>
                             <p className="text-sm text-gray-600 truncate">
-                              {user.email}
+                              {session.user_email}
                             </p>
                             <div className="flex items-center justify-between mt-1">
                               <p className="text-sm text-gray-500 truncate">
-                                {user.lastMessage}
+                                {session.last_message}
                               </p>
                               <div className="flex items-center">
                                 <Circle
                                   className={`h-2 w-2 ${getStatusColor(
-                                    user.status
+                                    session.status
                                   )}`}
                                   fill="currentColor"
                                 />
-                                {user.unread && (
-                                  <div className="ml-2 bg-[#0064B1] text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                                    1
-                                  </div>
-                                )}
                               </div>
                             </div>
                           </div>
@@ -200,7 +302,7 @@ export default function ContactAdminPage() {
 
               {/* Chat Area */}
               <div className="col-span-8">
-                {selectedUser ? (
+                {selectedSession ? (
                   <>
                     {/* Chat Header */}
                     <div className="p-4 border-b bg-gray-50">
@@ -209,9 +311,11 @@ export default function ContactAdminPage() {
                           <User className="h-5 w-5 text-white" />
                         </div>
                         <div>
-                          <h2 className="font-semibold">{selectedUser.name}</h2>
+                          <h2 className="font-semibold">
+                            {selectedSession.user_name}
+                          </h2>
                           <p className="text-sm text-zinc-600">
-                            {selectedUser.email}
+                            {selectedSession.user_email}
                           </p>
                         </div>
                       </div>
@@ -252,7 +356,13 @@ export default function ContactAdminPage() {
                               >
                                 <p>{message.content}</p>
                                 <p className="text-xs mt-1 opacity-70">
-                                  {message.timestamp}
+                                  {message.displayTime ||
+                                    new Date(
+                                      message.timestamp * 1000
+                                    ).toLocaleTimeString([], {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })}
                                 </p>
                               </div>
                             </div>
@@ -278,10 +388,7 @@ export default function ContactAdminPage() {
                   </>
                 ) : (
                   <div className="h-full flex items-center justify-center text-gray-500">
-                    <div className="text-center">
-                      <MessageSquare className="h-12 w-12 mx-auto mb-4" />
-                      <p>Select a conversation to start chatting</p>
-                    </div>
+                    Select a chat to start messaging
                   </div>
                 )}
               </div>

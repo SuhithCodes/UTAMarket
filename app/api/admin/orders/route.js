@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 
 export async function GET(request) {
+  let connection;
   try {
     // Simple auth check using JWT token from cookie
     const cookieStore = await cookies();
@@ -34,65 +35,67 @@ export async function GET(request) {
       );
     }
 
-    const connection = await pool.getConnection();
+    // Get connection from pool
+    connection = await pool.getConnection();
 
-    try {
-      // Get total orders and revenue
-      const [orderStats] = await connection.query(`
-        SELECT 
-          COUNT(*) as totalOrders,
-          COALESCE(SUM(total_amount), 0) as totalRevenue,
-          COUNT(CASE WHEN status = 'pending' THEN 1 END) as pendingOrders
-        FROM orders
-      `);
+    // Get total orders and revenue
+    const [orderStats] = await connection.query(`
+      SELECT 
+        COUNT(*) as totalOrders,
+        COALESCE(SUM(total_amount), 0) as totalRevenue,
+        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pendingOrders
+      FROM orders
+    `);
 
-      // Calculate average order value
-      const totalOrders = Number(orderStats[0].totalOrders);
-      const totalRevenue = Number(orderStats[0].totalRevenue);
-      const pendingOrders = Number(orderStats[0].pendingOrders);
-      const averageOrderValue =
-        totalOrders > 0 ? totalRevenue / totalOrders : 0;
+    // Calculate average order value
+    const totalOrders = Number(orderStats[0].totalOrders);
+    const totalRevenue = Number(orderStats[0].totalRevenue);
+    const pendingOrders = Number(orderStats[0].pendingOrders);
+    const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
-      // Get recent orders with all necessary fields
-      const [recentOrders] = await connection.query(`
-        SELECT 
-          o.id,
-          u.name as customer_name,
-          o.created_at,
-          o.status,
-          o.total_amount
-        FROM orders o
-        JOIN users u ON o.user_id = u.id
-        ORDER BY o.created_at DESC
-        LIMIT 10
-      `);
+    // Get recent orders with all necessary fields
+    const [recentOrders] = await connection.query(`
+      SELECT 
+        o.id,
+        u.name as customer_name,
+        o.created_at,
+        o.status,
+        o.total_amount
+      FROM orders o
+      JOIN users u ON o.user_id = u.id
+      ORDER BY o.created_at DESC
+      LIMIT 10
+    `);
 
-      // Convert numeric values in recent orders
-      const formattedRecentOrders = recentOrders.map((order) => ({
-        ...order,
-        total_amount: Number(order.total_amount),
-      }));
+    // Convert numeric values in recent orders
+    const formattedRecentOrders = recentOrders.map((order) => ({
+      ...order,
+      total_amount: Number(order.total_amount),
+    }));
 
-      return NextResponse.json({
-        totalOrders,
-        totalRevenue,
-        averageOrderValue,
-        pendingOrders,
-        recentOrders: formattedRecentOrders,
-      });
-    } finally {
-      connection.release();
-    }
+    return NextResponse.json({
+      totalOrders,
+      totalRevenue,
+      averageOrderValue,
+      pendingOrders,
+      recentOrders: formattedRecentOrders,
+    });
   } catch (error) {
     console.error("Orders API Error:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }
     );
+  } finally {
+    // Always release the connection back to the pool
+    if (connection) {
+      connection.release();
+    }
   }
 }
 
 export async function PUT(request) {
+  let connection;
   try {
     // Simple auth check using JWT token from cookie
     const cookieStore = await cookies();
@@ -148,27 +151,29 @@ export async function PUT(request) {
       );
     }
 
-    const connection = await pool.getConnection();
+    // Get connection from pool
+    connection = await pool.getConnection();
 
-    try {
-      // Update order status
-      await connection.query(
-        `UPDATE orders 
-         SET status = ?, 
-             updated_at = CURRENT_TIMESTAMP
-         WHERE id = ?`,
-        [status, orderId]
-      );
+    // Update order status
+    await connection.query(
+      `UPDATE orders 
+       SET status = ?, 
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [status, orderId]
+    );
 
-      return NextResponse.json({ success: true });
-    } finally {
-      connection.release();
-    }
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error updating order:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
     );
+  } finally {
+    // Always release the connection back to the pool
+    if (connection) {
+      connection.release();
+    }
   }
 }

@@ -81,42 +81,42 @@ export function Footer() {
             <ul className="space-y-2">
               <li>
                 <Link
-                  href="/category/electronics"
+                  href="/category/apparel"
                   className="text-zinc-400 hover:text-white"
                 >
-                  Electronics
+                  Apparel
                 </Link>
               </li>
               <li>
                 <Link
-                  href="/category/books"
+                  href="/category/accessories"
                   className="text-zinc-400 hover:text-white"
                 >
-                  Books
+                  Accessories
                 </Link>
               </li>
               <li>
                 <Link
-                  href="/category/furniture"
+                  href="/category/spirit-gear"
                   className="text-zinc-400 hover:text-white"
                 >
-                  Furniture
+                  Spirit Gear
                 </Link>
               </li>
               <li>
                 <Link
-                  href="/category/clothing"
+                  href="/category/school-supplies"
                   className="text-zinc-400 hover:text-white"
                 >
-                  Clothing
+                  School Supplies
                 </Link>
               </li>
               <li>
                 <Link
-                  href="/category/services"
+                  href="/category/gifts"
                   className="text-zinc-400 hover:text-white"
                 >
-                  Services
+                  Gifts
                 </Link>
               </li>
             </ul>

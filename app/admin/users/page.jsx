@@ -29,6 +29,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 export default function UsersPage() {
   const [users, setUsers] = useState([]);
@@ -41,6 +49,8 @@ export default function UsersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
 
   const fetchUsers = async () => {
     try {
@@ -86,6 +96,11 @@ export default function UsersPage() {
       setDeleteDialogOpen(false);
       setUserToDelete(null);
     }
+  };
+
+  const handleViewDetails = (user) => {
+    setSelectedUser(user);
+    setIsViewDialogOpen(true);
   };
 
   const filteredUsers = users.filter(
@@ -181,7 +196,11 @@ export default function UsersPage() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleViewDetails(user)}
+                      >
                         View Details
                       </Button>
                       <Button
@@ -199,6 +218,125 @@ export default function UsersPage() {
           </Table>
         </div>
       </Card>
+
+      {/* User Details Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>User Details</DialogTitle>
+            <DialogDescription>
+              Detailed information about the user
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedUser && (
+            <div className="space-y-6">
+              {/* User Summary */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h4 className="font-medium text-gray-500">User ID</h4>
+                  <p>#{selectedUser.id}</p>
+                </div>
+                <div>
+                  <h4 className="font-medium text-gray-500">Joined Date</h4>
+                  <p>
+                    {new Date(selectedUser.created_at).toLocaleDateString()}
+                  </p>
+                </div>
+                <div>
+                  <h4 className="font-medium text-gray-500">Status</h4>
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      selectedUser.is_active
+                        ? "bg-green-100 text-green-800"
+                        : "bg-red-100 text-red-800"
+                    }`}
+                  >
+                    {selectedUser.is_active ? "Active" : "Inactive"}
+                  </span>
+                </div>
+                <div>
+                  <h4 className="font-medium text-gray-500">Role</h4>
+                  <p className="capitalize">{selectedUser.role || "User"}</p>
+                </div>
+              </div>
+
+              {/* Personal Information */}
+              <div>
+                <h3 className="font-semibold mb-2">Personal Information</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <h4 className="font-medium text-gray-500">Name</h4>
+                    <p>{selectedUser.name}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-gray-500">Email</h4>
+                    <p>{selectedUser.email}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-gray-500">Student ID</h4>
+                    <p>{selectedUser.student_id}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-gray-500">Phone</h4>
+                    <p>{selectedUser.phone || "Not provided"}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Account Statistics */}
+              <div>
+                <h3 className="font-semibold mb-2">Account Statistics</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <h4 className="font-medium text-gray-500">Total Orders</h4>
+                    <p className="text-2xl font-bold">
+                      {selectedUser.total_orders || 0}
+                    </p>
+                  </div>
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <h4 className="font-medium text-gray-500">Total Spent</h4>
+                    <p className="text-2xl font-bold">
+                      {selectedUser.total_spent
+                        ? `$${selectedUser.total_spent.toFixed(2)}`
+                        : "$0.00"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Recent Activity */}
+              {selectedUser.recent_activity && (
+                <div>
+                  <h3 className="font-semibold mb-2">Recent Activity</h3>
+                  <div className="space-y-2">
+                    {selectedUser.recent_activity.map((activity, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center gap-2 text-sm"
+                      >
+                        <span className="text-gray-500">
+                          {new Date(activity.timestamp).toLocaleString()}
+                        </span>
+                        <span>{activity.description}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsViewDialogOpen(false)}
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

@@ -213,4 +213,64 @@ CREATE TABLE customer_tickets (
   status ENUM('pending', 'in_progress', 'resolved') DEFAULT 'pending',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-); 
+);
+
+-- Support Chat Sessions Table
+CREATE TABLE IF NOT EXISTS support_chat_sessions (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    admin_id INT,
+    status ENUM('active', 'pending', 'resolved') DEFAULT 'active',
+    subject VARCHAR(255),
+    priority ENUM('low', 'medium', 'high') DEFAULT 'medium',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    last_message_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_admin_reply_at TIMESTAMP NULL,
+    last_user_reply_at TIMESTAMP NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (admin_id) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_user (user_id),
+    INDEX idx_admin (admin_id),
+    INDEX idx_status (status),
+    INDEX idx_last_message (last_message_at)
+);
+
+-- Support Chat Messages Table
+CREATE TABLE IF NOT EXISTS support_chat_messages (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    session_id INT NOT NULL,
+    sender_id INT NOT NULL,
+    receiver_id INT NOT NULL,
+    message_type ENUM('user', 'admin', 'system') NOT NULL,
+    content TEXT NOT NULL,
+    timestamp INT NOT NULL, -- Unix timestamp
+    is_read BOOLEAN DEFAULT FALSE,
+    read_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (session_id) REFERENCES support_chat_sessions(id) ON DELETE CASCADE,
+    FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_session (session_id),
+    INDEX idx_sender (sender_id),
+    INDEX idx_receiver (receiver_id),
+    INDEX idx_timestamp (timestamp),
+    INDEX idx_is_read (is_read)
+);
+
+-- Product Sizes Table
+CREATE TABLE IF NOT EXISTS product_sizes (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    product_id INT NOT NULL,
+    size VARCHAR(10) NOT NULL,
+    stock_quantity INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_product_size (product_id, size),
+    INDEX idx_product (product_id)
+);
+
+-- Add size field to item_details JSON in products table
+ALTER TABLE products
+MODIFY COLUMN item_details JSON DEFAULT (JSON_OBJECT('Type', '', 'Color', '', 'Size', '')); 

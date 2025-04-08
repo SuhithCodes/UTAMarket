@@ -17,7 +17,7 @@ const testimonials = [
     role: "Computer Science Major",
     avatar: "https://i.pravatar.cc/150?img=1",
     content:
-      "UTAMarket saved me so much money on textbooks! I found all the books I needed for my classes at half the price of the campus bookstore.",
+      "The UTA spirit gear collection is amazing! I found the perfect hoodie for game days and it's become my favorite piece of clothing on campus.",
   },
   {
     id: 2,
@@ -25,7 +25,7 @@ const testimonials = [
     role: "Business Administration Major",
     avatar: "https://i.pravatar.cc/150?img=5",
     content:
-      "I furnished my entire apartment with items from UTAMarket. The furniture section has amazing deals from graduating students.",
+      "I love the variety of accessories available. Found some great UTA-themed jewelry and bags that really show off my school pride.",
   },
   {
     id: 3,
@@ -33,7 +33,7 @@ const testimonials = [
     role: "Engineering Major",
     avatar: "https://i.pravatar.cc/150?img=3",
     content:
-      "When my laptop died right before finals, I found an affordable replacement on UTAMarket within hours. Lifesaver!",
+      "The school supplies section saved me so much money! Got all my notebooks, pens, and other essentials at great prices.",
   },
   {
     id: 4,
@@ -41,7 +41,7 @@ const testimonials = [
     role: "Biology Major",
     avatar: "https://i.pravatar.cc/150?img=9",
     content:
-      "The tutoring services available on UTAMarket helped me pass Organic Chemistry. Highly recommend checking out the services section!",
+      "The apparel selection is fantastic! I found some great UTA-branded t-shirts and sweatshirts that are both comfortable and stylish.",
   },
   {
     id: 5,
@@ -49,7 +49,7 @@ const testimonials = [
     role: "Psychology Major",
     avatar: "https://i.pravatar.cc/150?img=8",
     content:
-      "As a seller on UTAMarket, I've been able to make back some money on textbooks and electronics I no longer need. The platform is super easy to use.",
+      "I've been selling my custom UTA-themed gifts on the marketplace and the response has been amazing. It's a great platform for student entrepreneurs!",
   },
 ];
 

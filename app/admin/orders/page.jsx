@@ -11,6 +11,7 @@ import {
   Search,
   MoreVertical,
   MoreHorizontal,
+  Download,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import {
@@ -47,6 +48,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 const ORDER_STATUS = {
   PENDING: "pending",
@@ -91,28 +100,29 @@ export default function OrdersPage() {
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [newStatus, setNewStatus] = useState("");
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+
+  const fetchOrders = async () => {
+    try {
+      const response = await fetch("/api/admin/orders");
+      if (!response.ok) throw new Error("Failed to fetch orders");
+      const data = await response.json();
+      setOrders(data.recentOrders || []);
+      setStats({
+        totalOrders: data.totalOrders || 0,
+        totalRevenue: data.totalRevenue || 0,
+        averageOrderValue: data.averageOrderValue || 0,
+        pendingOrders: data.pendingOrders || 0,
+      });
+    } catch (error) {
+      console.error("Error fetching orders:", error);
+      setOrders([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        const response = await fetch("/api/admin/orders");
-        if (!response.ok) throw new Error("Failed to fetch orders");
-        const data = await response.json();
-        setOrders(data.recentOrders || []);
-        setStats({
-          totalOrders: data.totalOrders || 0,
-          totalRevenue: data.totalRevenue || 0,
-          averageOrderValue: data.averageOrderValue || 0,
-          pendingOrders: data.pendingOrders || 0,
-        });
-      } catch (error) {
-        console.error("Error fetching orders:", error);
-        setOrders([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchOrders();
   }, []);
 
@@ -134,7 +144,7 @@ export default function OrdersPage() {
       }
 
       // Refresh orders after successful update
-      fetchOrders();
+      await fetchOrders();
       setIsConfirmDialogOpen(false);
     } catch (error) {
       console.error("Error updating order status:", error);
@@ -146,6 +156,11 @@ export default function OrdersPage() {
     setSelectedOrder(order);
     setNewStatus(status);
     setIsConfirmDialogOpen(true);
+  };
+
+  const handleViewDetails = (order) => {
+    setSelectedOrder(order);
+    setIsViewDialogOpen(true);
   };
 
   const filteredOrders = orders.filter((order) => {
@@ -160,6 +175,52 @@ export default function OrdersPage() {
     }).format(amount);
   };
 
+  const exportToCSV = () => {
+    // Create CSV header
+    const headers = [
+      "Order ID",
+      "Customer",
+      "Date",
+      "Status",
+      "Amount",
+      "Items",
+      "Shipping Address",
+    ];
+
+    // Convert orders to CSV rows
+    const rows = filteredOrders.map((order) => [
+      order.id,
+      order.customer_name,
+      new Date(order.created_at).toLocaleDateString(),
+      STATUS_LABELS[order.status],
+      formatCurrency(order.total_amount),
+      order.items
+        ?.map((item) => `${item.name} (${item.quantity})`)
+        .join(", ") || "",
+      order.shipping_address || "",
+    ]);
+
+    // Combine headers and rows
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
+    ].join("\n");
+
+    // Create and download the file
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute(
+      "download",
+      `orders_${new Date().toISOString().split("T")[0]}.csv`
+    );
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -172,8 +233,8 @@ export default function OrdersPage() {
     <div className="space-y-8">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Orders Management</h1>
-        <Button className="flex items-center gap-2">
-          <BarChart className="h-4 w-4" />
+        <Button className="flex items-center gap-2" onClick={exportToCSV}>
+          <Download className="h-4 w-4" />
           Export Report
         </Button>
       </div>
@@ -279,27 +340,36 @@ export default function OrdersPage() {
                   </TableCell>
                   <TableCell>${formatCurrency(order.total_amount)}</TableCell>
                   <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <span className="sr-only">Open menu</span>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        {Object.entries(STATUS_LABELS)
-                          .filter(([key]) => key !== order.status)
-                          .map(([key, label]) => (
-                            <DropdownMenuItem
-                              key={key}
-                              onClick={() => openConfirmDialog(order, key)}
-                            >
-                              Change status to {label}
-                            </DropdownMenuItem>
-                          ))}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleViewDetails(order)}
+                      >
+                        View Details
+                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Open menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          {Object.entries(STATUS_LABELS)
+                            .filter(([key]) => key !== order.status)
+                            .map(([key, label]) => (
+                              <DropdownMenuItem
+                                key={key}
+                                onClick={() => openConfirmDialog(order, key)}
+                              >
+                                Change status to {label}
+                              </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -336,6 +406,111 @@ export default function OrdersPage() {
           </div>
         </div>
       )}
+
+      {/* Order Details Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Order Details</DialogTitle>
+            <DialogDescription>
+              Detailed information about the order
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedOrder && (
+            <div className="space-y-6">
+              {/* Order Summary */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h4 className="font-medium text-gray-500">Order ID</h4>
+                  <p>#{selectedOrder.id}</p>
+                </div>
+                <div>
+                  <h4 className="font-medium text-gray-500">Date</h4>
+                  <p>
+                    {new Date(selectedOrder.created_at).toLocaleDateString()}
+                  </p>
+                </div>
+                <div>
+                  <h4 className="font-medium text-gray-500">Status</h4>
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      STATUS_COLORS[selectedOrder.status]
+                    }`}
+                  >
+                    {STATUS_LABELS[selectedOrder.status]}
+                  </span>
+                </div>
+                <div>
+                  <h4 className="font-medium text-gray-500">Total Amount</h4>
+                  <p>{formatCurrency(selectedOrder.total_amount)}</p>
+                </div>
+              </div>
+
+              {/* Customer Information */}
+              <div>
+                <h3 className="font-semibold mb-2">Customer Information</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <h4 className="font-medium text-gray-500">Name</h4>
+                    <p>{selectedOrder.customer_name}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-gray-500">Email</h4>
+                    <p>{selectedOrder.customer_email}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <h4 className="font-medium text-gray-500">
+                      Shipping Address
+                    </h4>
+                    <p>{selectedOrder.shipping_address}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Order Items */}
+              <div>
+                <h3 className="font-semibold mb-2">Order Items</h3>
+                <div className="space-y-4">
+                  {selectedOrder.items?.map((item, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                    >
+                      <div>
+                        <h4 className="font-medium">{item.name}</h4>
+                        <p className="text-sm text-gray-500">
+                          Quantity: {item.quantity}
+                        </p>
+                      </div>
+                      <p className="font-medium">
+                        {formatCurrency(item.price)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Order Notes */}
+              {selectedOrder.notes && (
+                <div>
+                  <h3 className="font-semibold mb-2">Order Notes</h3>
+                  <p className="text-gray-600">{selectedOrder.notes}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsViewDialogOpen(false)}
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

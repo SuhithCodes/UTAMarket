@@ -44,6 +44,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 const TICKET_STATUS = {
   PENDING: "pending",
@@ -79,6 +87,8 @@ export default function TicketsPage() {
     newStatus: null,
     ticketSubject: "",
   });
+  const [selectedTicket, setSelectedTicket] = useState(null);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
 
   const fetchTickets = async () => {
     try {
@@ -135,6 +145,11 @@ export default function TicketsPage() {
         ticketSubject: "",
       });
     }
+  };
+
+  const handleViewDetails = (ticket) => {
+    setSelectedTicket(ticket);
+    setIsViewDialogOpen(true);
   };
 
   const filteredTickets = tickets.filter((ticket) => {
@@ -261,7 +276,11 @@ export default function TicketsPage() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleViewDetails(ticket)}
+                      >
                         View Details
                       </Button>
                       <DropdownMenu>
@@ -320,6 +339,124 @@ export default function TicketsPage() {
           </Table>
         </div>
       </Card>
+
+      {/* Ticket Details Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Ticket Details</DialogTitle>
+            <DialogDescription>
+              Detailed information about the support ticket
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedTicket && (
+            <div className="space-y-6">
+              {/* Ticket Summary */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h4 className="font-medium text-gray-500">Ticket ID</h4>
+                  <p>#{selectedTicket.id}</p>
+                </div>
+                <div>
+                  <h4 className="font-medium text-gray-500">Status</h4>
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      STATUS_COLORS[selectedTicket.status]
+                    }`}
+                  >
+                    {STATUS_LABELS[selectedTicket.status]}
+                  </span>
+                </div>
+                <div>
+                  <h4 className="font-medium text-gray-500">Created</h4>
+                  <p>{new Date(selectedTicket.created_at).toLocaleString()}</p>
+                </div>
+                <div>
+                  <h4 className="font-medium text-gray-500">Last Updated</h4>
+                  <p>{new Date(selectedTicket.updated_at).toLocaleString()}</p>
+                </div>
+              </div>
+
+              {/* Customer Information */}
+              <div>
+                <h3 className="font-semibold mb-2">Customer Information</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <h4 className="font-medium text-gray-500">Name</h4>
+                    <p>{selectedTicket.name}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-gray-500">Email</h4>
+                    <p>{selectedTicket.email}</p>
+                  </div>
+                  {selectedTicket.order_number && (
+                    <div className="col-span-2">
+                      <h4 className="font-medium text-gray-500">
+                        Order Number
+                      </h4>
+                      <p>{selectedTicket.order_number}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Ticket Content */}
+              <div>
+                <h3 className="font-semibold mb-2">Ticket Content</h3>
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="font-medium text-gray-500">Subject</h4>
+                    <p className="font-medium">{selectedTicket.subject}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-gray-500">Message</h4>
+                    <div className="mt-2 p-4 bg-gray-50 rounded-lg">
+                      <p className="whitespace-pre-wrap">
+                        {selectedTicket.message}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Ticket History */}
+              <div>
+                <h3 className="font-semibold mb-2">Ticket History</h3>
+                <div className="space-y-2">
+                  <div className="flex items-start gap-2">
+                    <div className="flex-shrink-0 w-2 h-2 mt-2 rounded-full bg-blue-500"></div>
+                    <div>
+                      <p className="text-sm font-medium">Ticket Created</p>
+                      <p className="text-sm text-gray-500">
+                        {new Date(selectedTicket.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <div className="flex-shrink-0 w-2 h-2 mt-2 rounded-full bg-green-500"></div>
+                    <div>
+                      <p className="text-sm font-medium">Last Updated</p>
+                      <p className="text-sm text-gray-500">
+                        {new Date(selectedTicket.updated_at).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsViewDialogOpen(false)}
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Status Change Confirmation Dialog */}
       <AlertDialog
